@@ -1,5 +1,5 @@
 name: edu_tracker
-description: Presence - camera based student attendance (teacher, student, admin).
+description: EduTrack - camera based attendance tracker.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  provider: ^6.1.2
   google_fonts: ^6.2.1
 
 dev_dependencies:

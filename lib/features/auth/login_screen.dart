@@ -1,126 +1,247 @@
-// Sign in for all three roles. Teacher and admin also enter a 6-digit code.
-// 3 wrong attempts lock sign-in for 30 seconds.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import '../../core/core.dart';
-import '../admin/admin_shell.dart';
-import '../student/student_shell.dart';
-import '../teacher/teacher_shell.dart';
-import 'register_face_screen.dart';
-import 'reset_screen.dart';
+import 'package:flutter/services.dart';
+
+import '../../core/routes/app_routes.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text.dart';
+import '../../core/widgets/et_widgets.dart';
+
+enum UserRole { student, teacher, admin }
+
+/// Keeps digits only, max 6, shown as "482 913".
+class SixDigitCodeFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final t = digits.length > 6 ? digits.substring(0, 6) : digits;
+    final f = t.length > 3 ? '${t.substring(0, 3)} ${t.substring(3)}' : t;
+    return TextEditingValue(
+      text: f,
+      selection: TextSelection.collapsed(offset: f.length),
+    );
+  }
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
   @override
-  State<LoginScreen> createState() => _LoginState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginState extends State<LoginScreen> {
-  Role role = Role.teacher;
-  final id = TextEditingController(), pw = TextEditingController(), code = TextEditingController();
-  bool hide = true;
-  int fails = 0;
-  String? error;
-  DateTime? lock;
+class _LoginScreenState extends State<LoginScreen> {
+  static const _demoIds = {
+    UserRole.student: 'S-2041',
+    UserRole.teacher: 'T-1042',
+    UserRole.admin: 'A-0007',
+  };
 
-  static const _demo = {Role.student: ('CS-2041', ''), Role.teacher: ('T-1042', '482 913'), Role.admin: ('HOD-01', '204 771')};
-  static const _idLabel = {Role.student: 'Student ID', Role.teacher: 'Staff ID', Role.admin: 'Admin ID'};
-
-  @override
-  void initState() {
-    super.initState();
-    _fill();
-  }
-
-  void _fill() {
-    id.text = _demo[role]!.$1;
-    pw.text = Store.demoPassword;
-    code.text = _demo[role]!.$2;
-    error = null;
-  }
+  UserRole _role = UserRole.teacher;
+  final _id = TextEditingController(text: 'T-1042');
+  final _pw = TextEditingController(text: '12345678');
+  final _code = TextEditingController(text: '482 913');
+  bool _loading = false;
+  bool _submitted = false;
 
   @override
   void dispose() {
-    id.dispose();
-    pw.dispose();
-    code.dispose();
+    _id.dispose();
+    _pw.dispose();
+    _code.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    if (lock != null && DateTime.now().isBefore(lock!)) {
-      setState(() => error = 'Too many attempts. Try again in 30 seconds.');
-      return;
+  String get _idLabel {
+    switch (_role) {
+      case UserRole.student:
+        return 'Student ID';
+      case UserRole.teacher:
+        return 'Staff ID';
+      case UserRole.admin:
+        return 'Admin ID';
     }
-    if (!Store.i.check(role, id.text, pw.text, code.text)) {
-      fails++;
-      setState(() {
-        if (fails >= 3) {
-          lock = DateTime.now().add(const Duration(seconds: 30));
-          fails = 0;
-          error = 'Too many attempts. Try again in 30 seconds.';
-        } else {
-          error = role == Role.student ? 'ID or password is incorrect.' : 'ID, password or code is incorrect.';
-        }
-      });
-      return;
+  }
+
+  String? get _idError =>
+      _submitted && _id.text.trim().isEmpty ? 'Enter your ID' : null;
+  String? get _pwError => _submitted && _pw.text.length < 6
+      ? 'Password must be at least 6 characters'
+      : null;
+  String? get _codeError =>
+      _submitted && _code.text.replaceAll(' ', '').length != 6
+          ? 'Enter the 6-digit code'
+          : null;
+
+  void _refresh([String? _]) {
+    if (_submitted) setState(() {});
+  }
+
+  void _setRole(int i) {
+    final next = UserRole.values[i];
+    if (_id.text == _demoIds[_role]) _id.text = _demoIds[next]!;
+    setState(() => _role = next);
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _submitted = true);
+    if (_idError != null || _pwError != null || _codeError != null) return;
+
+    setState(() => _loading = true);
+    await Future<void>.delayed(const Duration(milliseconds: 650));
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    switch (_role) {
+      case UserRole.teacher:
+        Navigator.of(context).pushNamedAndRemoveUntil(
+            Routes.teacherRooms, (r) => false);
+        break;
+      case UserRole.student:
+        Navigator.of(context)
+            .pushNamed(Routes.comingSoon, arguments: 'Student');
+        break;
+      case UserRole.admin:
+        Navigator.of(context).pushNamed(Routes.comingSoon, arguments: 'Admin');
+        break;
     }
-    Store.i.signIn(role);
-    final Widget next = switch (role) {
-      Role.student => const StudentShell(),
-      Role.teacher => const TeacherShell(),
-      Role.admin => const AdminShell(),
-    };
-    Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => next), (r) => false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = switch (role) {
-      Role.student => 'Sign in to see your attendance. The camera in your classroom marks it for you.',
-      Role.teacher => 'Sign in to manage attendance. Your classroom camera does the marking.',
-      Role.admin => 'Department admin access. Sign in to monitor cameras and attendance.',
-    };
+    final top = math.max(64.0, MediaQuery.of(context).padding.top + 20);
     return Scaffold(
-      backgroundColor: kBg,
-      body: Stack(children: [
-        Positioned(left: -90, top: -90, child: Container(width: 260, height: 260, decoration: const BoxDecoration(color: kBlobA, shape: BoxShape.circle))),
-        Positioned(right: -30, top: 60, child: Transform.rotate(angle: 0.349, child: Container(width: 110, height: 110, decoration: BoxDecoration(color: kBlobB, borderRadius: BorderRadius.circular(32))))),
-        SafeArea(
-          child: ListView(padding: const EdgeInsets.fromLTRB(24, 34, 24, 24), children: [
-            Container(
-              width: 60,
-              height: 60,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(20), boxShadow: const [BoxShadow(color: Color(0x594F46E5), blurRadius: 24, offset: Offset(0, 10))]),
-              child: const Text('E', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
+      backgroundColor: AppColors.bg,
+      body: Stack(
+        children: [
+          Positioned(
+            left: -90,
+            top: -90,
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: const BoxDecoration(
+                  shape: BoxShape.circle, color: AppColors.blobLarge),
             ),
-            const SizedBox(height: 20),
-            const Text('Welcome to\nEduTracker', style: TextStyle(fontSize: 34, height: 1.1, fontWeight: FontWeight.w800, letterSpacing: -1, color: kInk)),
-            const SizedBox(height: 8),
-            Text(subtitle, style: const TextStyle(fontSize: 15, height: 1.5, color: kMuted)),
-            const SizedBox(height: 20),
-            Seg(const ['Student', 'Teacher', 'Admin'], role.index, (i) => setState(() {
-                  role = Role.values[i];
-                  _fill();
-                })),
-            const SizedBox(height: 16),
-            AppField(_idLabel[role]!, id),
-            const SizedBox(height: 12),
-            AppField('Password', pw, obscure: hide, onSubmit: (_) => _submit(), suffix: IconButton(icon: Icon(hide ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: kMuted), onPressed: () => setState(() => hide = !hide))),
-            if (role != Role.student) ...[
-              const SizedBox(height: 12),
-              AppField('6-digit code sent to your registered phone', code, keyboard: TextInputType.number, spacing: 3, maxLength: 7, onSubmit: (_) => _submit()),
-            ],
-            if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: kRed, fontSize: 13, fontWeight: FontWeight.w600))),
-            const SizedBox(height: 20),
-            PButton(role == Role.student ? 'Sign in' : 'Sign in securely', _submit),
-            const SizedBox(height: 14),
-            Center(child: GestureDetector(onTap: () => go(context, const ResetScreen()), child: const Padding(padding: EdgeInsets.all(6), child: Text('Forgot password?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kMuted))))),
-            if (role == Role.student)
-              Center(child: GestureDetector(onTap: () => go(context, const RegisterFaceScreen()), child: const Padding(padding: EdgeInsets.all(6), child: Text('First time here? Register your face', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kLink))))),
-          ]),
-        ),
-      ]),
+          ),
+          Positioned(
+            right: -30,
+            top: 60,
+            child: Transform.rotate(
+              angle: 20 * math.pi / 180,
+              child: Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  color: AppColors.blobSmall,
+                  borderRadius: BorderRadius.circular(32),
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(24, top, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  gap(30),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: AppShadows.logo,
+                      ),
+                      child: Text('E',
+                          style: AppText.style(
+                              26, FontWeight.w800, Colors.white)),
+                    ),
+                  ),
+                  gap(20),
+                  Text(
+                    'Welcome to\nEduTrack',
+                    style: AppText.style(34, FontWeight.w800, AppColors.ink,
+                        ls: -0.03, height: 1.1),
+                  ),
+                  gap(8),
+                  Text(
+                    'Sign in to manage attendance. Your classroom camera does the marking.',
+                    style: AppText.style(15, FontWeight.w400, AppColors.muted,
+                        height: 1.5),
+                  ),
+                  gap(20),
+                  EtSegmented(
+                    labels: const ['Student', 'Teacher', 'Admin'],
+                    selected: _role.index,
+                    onChanged: _setRole,
+                  ),
+                  gap(20),
+                  EtTextField(
+                    label: _idLabel,
+                    controller: _id,
+                    error: _idError,
+                    onChanged: _refresh,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  gap(12),
+                  EtTextField(
+                    label: 'Password',
+                    controller: _pw,
+                    obscure: true,
+                    error: _pwError,
+                    onChanged: _refresh,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  gap(12),
+                  EtTextField(
+                    label: '6-digit code sent to your registered phone',
+                    controller: _code,
+                    weight: FontWeight.w700,
+                    letterSpacingEm: 0.18,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [SixDigitCodeFormatter()],
+                    error: _codeError,
+                    onChanged: _refresh,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
+                  ),
+                  gap(20),
+                  EtButton(
+                    label: 'Sign in securely',
+                    height: 56,
+                    radius: 16,
+                    fontSize: 16,
+                    shadow: AppShadows.primaryLarge,
+                    loading: _loading,
+                    onPressed: _submit,
+                  ),
+                  gap(20),
+                  Center(
+                    child: InkWell(
+                      onTap: () =>
+                          Navigator.of(context).pushNamed(Routes.reset),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text('Forgot password?',
+                            style: AppText.style(
+                                14, FontWeight.w600, AppColors.muted)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

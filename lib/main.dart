@@ -1,17 +1,38 @@
 import 'package:flutter/material.dart';
-import 'core/core.dart';
-import 'features/auth/login_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
-void main() => runApp(const EduTrackerApp());
+import 'core/routes/app_routes.dart';
+import 'core/theme/app_theme.dart';
+import 'data/teacher_store.dart';
 
-class EduTrackerApp extends StatelessWidget {
-  const EduTrackerApp({super.key});
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+  ));
+  runApp(const EduTrackApp());
+}
+
+class EduTrackApp extends StatelessWidget {
+  const EduTrackApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        title: 'EduTracker',
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => TeacherStore()),
+        // StudentStore / AdminStore are added here in the next modules.
+      ],
+      child: MaterialApp(
+        title: 'EduTrack',
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        home: const LoginScreen(),
-      );
+        theme: AppTheme.light(),
+        initialRoute: Routes.login,
+        onGenerateRoute: AppRouter.onGenerate,
+      ),
+    );
+  }
 }
