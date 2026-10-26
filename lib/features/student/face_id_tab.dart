@@ -1,46 +1,67 @@
-// Face registration status, update and delete own face data.
+// Face ID status, re-register, and match info.
 import 'package:flutter/material.dart';
 import '../../core/core.dart';
-import '../auth/face_register_screen.dart';
+import '../auth/register_face_screen.dart';
 
 class FaceIdTab extends StatelessWidget {
   const FaceIdTab({super.key});
+
+  Widget _stat(String label, String value, {Color color = kInk}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color)),
+        ]),
+      );
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: Store.i,
         builder: (context, _) {
           final s = Store.i;
           return Screen(
+            above: s.uid,
             title: 'Face ID',
-            subtitle: s.uid,
+            gap: 16,
             children: [
-              AppCard(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Item(s.faceRegistered ? 'Face registered' : 'No face registered',
-                      sub: s.faceRegistered ? 'Last updated ${s.faceUpdated}' : 'Attendance cannot be marked automatically',
-                      trailing: s.faceRegistered ? const Pill('Active', Tone.green) : const Pill('Not set', Tone.amber)),
-                  const Hr(),
-                  const Text('Classroom cameras use your face to mark attendance. A live-person (liveness) check is always on.', style: kMut),
+              HeroCard(
+                child: Row(children: [
+                  Container(width: 72, height: 72, decoration: const BoxDecoration(color: kBlobB, shape: BoxShape.circle), child: const Icon(Icons.person_outline, size: 40, color: kDeep)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(s.faceRegistered ? 'Face registered' : 'No face registered', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(s.faceRegistered ? 'Last updated ${s.faceUpdated}' : 'Register to turn on automatic attendance', style: const TextStyle(fontSize: 13, color: kSoft)),
+                      ),
+                    ]),
+                  ),
                 ]),
               ),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: () => go(context, const FaceRegisterScreen()), child: Text(s.faceRegistered ? 'Update my face' : 'Register my face')),
-              if (s.faceRegistered) ...[
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(foregroundColor: kRed),
-                  onPressed: () async {
-                    final ok = await confirm(context, 'Delete face data?', 'Automatic attendance will stop until you register again. This is recorded in the audit trail.', yes: 'Delete', danger: true);
-                    if (ok && context.mounted) {
-                      s.deleteFace();
-                      toast(context, 'Face data deleted');
-                    }
-                  },
-                  child: const Text('Delete my face data'),
+              Panel(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(s.faceRegistered ? 'Looks different lately?' : 'One quick scan', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 10),
+                  Text(
+                    s.faceRegistered
+                        ? 'New glasses, a new haircut or a beard can lower your match score. Re-register your face to keep attendance accurate.'
+                        : 'Register your face once so the classroom camera can recognise you.',
+                    style: const TextStyle(fontSize: 14, height: 1.5, color: kMuted),
+                  ),
+                  const SizedBox(height: 10),
+                  PButton(s.faceRegistered ? 'Re-register face' : 'Register face', () => goRoot(context, const RegisterFaceScreen()), height: 50, size: 15),
+                ]),
+              ),
+              if (s.faceRegistered)
+                Panel(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                  child: Column(children: [
+                    _stat('Recent match score', '92%', color: kGreen),
+                    const Divider(height: 1, thickness: 1, color: kDivider),
+                    _stat('Scans needing review', '1 this month'),
+                  ]),
                 ),
-              ],
-              const SizedBox(height: 14),
-              const Text('You can delete your face data at any time.', style: kMut),
             ],
           );
         },

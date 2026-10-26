@@ -17,46 +17,44 @@ class _ClassListState extends State<ClassListScreen> {
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: Store.i,
         builder: (context, _) {
-          final ss = Store.i.students;
+          final s = Store.i;
+          final c = widget.course;
           final groups = [
-            ss.where((x) => x.status == 'Present').toList(),
-            ss.where((x) => x.status == 'Late').toList(),
-            ss.where((x) => x.status == 'Absent' || x.status == 'Review').toList(),
+            s.roster.where((x) => x.status == 'Present').toList(),
+            s.roster.where((x) => x.status == 'Late').toList(),
+            s.roster.where((x) => x.status == 'Absent').toList(),
           ];
           final list = groups[idx];
           return Screen(
-            back: true,
-            backLabel: 'Room ${widget.course.room}',
-            subtitle: '${widget.course.name} · ${widget.course.time}',
+            backLabel: s.roomOf(c.room).name,
             title: 'Class list',
+            below: '${c.name} · ${c.time}',
             children: [
-              Seg(['Present ${groups[0].length}', 'Late ${groups[1].length}', 'Absent ${groups[2].length}'], idx, (i) => setState(() => idx = i)),
-              if (list.isEmpty)
-                emptyNote('Nobody here.')
-              else
-                AppCard(
-                  child: Column(children: [
-                    for (var i = 0; i < list.length; i++) ...[
-                      if (i > 0) const Hr(),
-                      Item(
-                        list[i].name,
-                        sub: '${list[i].id} · ${list[i].status == 'Absent' ? 'not seen' : 'seen'}',
-                        trailing: list[i].status == 'Absent'
-                            ? FilledButton.tonal(
-                                style: FilledButton.styleFrom(minimumSize: const Size(0, 36), padding: const EdgeInsets.symmetric(horizontal: 14)),
-                                onPressed: () {
-                                  Store.i.mark(list[i]);
-                                  toast(context, '${list[i].name} marked present');
-                                },
-                                child: const Text('Mark present'),
-                              )
-                            : (list[i].status == 'Review' ? const Pill('In review', Tone.violet) : null),
-                      ),
-                    ],
-                  ]),
-                ),
-              const SizedBox(height: 14),
-              const Text('Manual marks are recorded in the audit trail.', style: kMut),
+              Seg(['Present ${groups[0].length}', 'Late ${groups[1].length}', 'Absent ${groups[2].length}'], idx, (i) => setState(() => idx = i), size: 13),
+              RowsPanel(
+                empty: 'Nobody here.',
+                [
+                  for (final x in list)
+                    RowItem(
+                      x.name,
+                      sub: '${x.id} · ${x.status == 'Absent' ? 'not seen' : (x.status == 'Late' ? 'seen late' : 'seen')}',
+                      trailing: x.status == 'Absent'
+                          ? GestureDetector(
+                              onTap: () {
+                                s.mark(x, c);
+                                toast(context, '${x.name} marked present');
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                                decoration: BoxDecoration(color: kChip, borderRadius: BorderRadius.circular(12)),
+                                child: const Text('Mark present', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: kDeep)),
+                              ),
+                            )
+                          : null,
+                    ),
+                ],
+              ),
+              const Text('Manual marks are recorded in the audit trail.', textAlign: TextAlign.center, style: kNote),
             ],
           );
         },

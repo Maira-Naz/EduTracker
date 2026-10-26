@@ -1,72 +1,101 @@
-// Course attendance summary; tap an absent day to see date and details.
+// Course attendance: status card + recent sessions. Tap a session to see details.
 import 'package:flutter/material.dart';
 import '../../core/core.dart';
 
-class CourseDetail extends StatefulWidget {
-  const CourseDetail(this.c, {super.key});
+class CourseDetailScreen extends StatefulWidget {
+  const CourseDetailScreen(this.c, {super.key});
   final Course c;
   @override
-  State<CourseDetail> createState() => _CourseDetailState();
+  State<CourseDetailScreen> createState() => _CourseDetailState();
 }
 
-class _CourseDetailState extends State<CourseDetail> {
-  int? open = 0;
+class _CourseDetailState extends State<CourseDetailScreen> {
+  int filter = 0;
+  int? open;
+  static const _filters = ['All', 'Absent', 'Late'];
+
+  Tone _tone(String s) => s == 'Present' ? Tone.green : (s == 'Late' ? Tone.amber : Tone.red);
+
+  String _note(Course c, String sub, String status) {
+    final room = Store.i.roomOf(c.room).name;
+    final seen = sub.replaceFirst('Seen ', '');
+    return switch (status) {
+      'Present' => 'The camera in $room matched your face at $seen.',
+      'Late' => 'You were seen at $seen, after the late time (${hm(c.lateAt)}).',
+      _ => 'The camera in $room did not see you during this class (${c.time}).',
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    final c = widget.c, s = Store.i;
-    final st = s.stats[c.name]!, p = s.pctOf(c), days = s.absentDays[c.name] ?? [];
+    final s = Store.i;
+    final c = widget.c;
+    final p = s.pctOf(c);
+    final m = s.canMiss(c);
+    final low = p < 75;
+    final list = s.recent[c.name]!.where((e) => filter == 0 || e.$3 == _filters[filter]).toList();
+    final message = low
+        ? 'Below 75%. You can miss $m more classes before it drops further.'
+        : 'Above 75%. You can miss $m more ${m == 1 ? 'class' : 'classes'} and stay above the line.';
     return Screen(
-      back: true,
       backLabel: 'My courses',
-      subtitle: c.teacher,
       title: c.name,
+      titleSize: 32,
+      below: '${c.teacher} · ${s.roomOf(c.room).name}',
       children: [
-        AppCard(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(color: low ? const Color(0xFFFFF6DF) : kGreenBg, border: Border.all(color: low ? const Color(0xFFF2B84B) : kDotGreen, width: 2), borderRadius: BorderRadius.circular(22)),
           child: Row(children: [
-            SizedBox(
-              width: 92,
-              height: 92,
-              child: Stack(fit: StackFit.expand, children: [
-                CircularProgressIndicator(value: p / 100, strokeWidth: 10, backgroundColor: kGrey, color: barColor(p)),
-                Center(child: Text('$p%', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
-              ]),
-            ),
-            const SizedBox(width: 18),
-            Expanded(child: Text('${st[0]} classes held\n${st[1]} present · ${st[2]} late · ${st[3]} absent', style: const TextStyle(color: kMuted, fontSize: 13, height: 1.7))),
+            Text('$p%', style: TextStyle(fontSize: 40, fontWeight: FontWeight.w800, letterSpacing: -1, color: low ? const Color(0xFF8A5A00) : kGreen)),
+            const SizedBox(width: 16),
+            Expanded(child: Text(message, style: TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w600, color: low ? const Color(0xFF5C4108) : kGreen))),
           ]),
         ),
-        AppCard(child: Item('Schedule', sub: '${c.days} · ${c.time} · Room ${c.room}')),
-        if (p < 75)
-          AppCard(color: kAmberBg, border: kAmberBg, child: const Text('Your attendance is below 75% in this course.', style: TextStyle(color: kAmber, fontSize: 13))),
-        const Section('Absent days'),
-        if (days.isEmpty)
-          emptyNote('No absences. Nice work.')
-        else ...[
-          const Padding(padding: EdgeInsets.only(top: 2), child: Text('Tap a day to see what happened.', style: kMut)),
-          for (var i = 0; i < days.length; i++)
-            AppCard(
-              border: open == i ? kPrimary : kLine,
-              onTap: () => setState(() => open = open == i ? null : i),
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                alignment: Alignment.topCenter,
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Item(days[i], trailing: const Pill('Absent', Tone.red)),
-                  if (open == i) ...[
-                    const Hr(),
-                    Text('Class ${c.time}, Room ${c.room}. The camera did not detect you during this session.', style: kMut),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32), foregroundColor: kViolet),
-                      onPressed: () => toast(context, 'Request sent to ${c.teacher}'),
-                      child: Text('Ask ${c.teacher} to review'),
+        const SectionTitle('Recent sessions'),
+        Chips(_filters, filter, (i) => setState(() {
+              filter = i;
+              open = null;
+            })),
+        Panel(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+          child: list.isEmpty
+              ? const Padding(padding: EdgeInsets.symmetric(vertical: 18), child: Text('No sessions in this filter.', textAlign: TextAlign.center, style: kRowSub))
+              : Column(children: [
+                  for (var i = 0; i < list.length; i++) ...[
+                    if (i > 0) const Divider(height: 1, thickness: 1, color: kDivider),
+                    InkWell(
+                      onTap: () => setState(() => open = open == i ? null : i),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(list[i].$1, style: kRowTitle), Text(list[i].$2, style: kRowSub)])),
+                            Pill(list[i].$3, _tone(list[i].$3)),
+                          ]),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 200),
+                            alignment: Alignment.topCenter,
+                            child: open == i
+                                ? Padding(
+                                    padding: const EdgeInsets.only(top: 10),
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(_note(c, list[i].$2, list[i].$3), style: kNote),
+                                      if (list[i].$3 == 'Absent')
+                                        GestureDetector(
+                                          onTap: () => toast(context, 'Request sent to ${c.teacher}'),
+                                          child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Ask ${c.teacher} to review  ›', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kLink))),
+                                        ),
+                                    ]),
+                                  )
+                                : const SizedBox(width: double.infinity),
+                          ),
+                        ]),
+                      ),
                     ),
                   ],
                 ]),
-              ),
-            ),
-        ],
+        ),
       ],
     );
   }

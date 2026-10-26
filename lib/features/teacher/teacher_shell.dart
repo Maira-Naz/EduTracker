@@ -8,12 +8,9 @@ import 'rooms_tab.dart';
 class TeacherShell extends StatelessWidget {
   const TeacherShell({super.key});
   @override
-  Widget build(BuildContext context) => const AppShell(
-        tabs: [RoomsTab(), ReviewTab(), ReportsTab()],
-        items: [
-          NavItem(Icons.videocam_outlined, Icons.videocam, 'Rooms'),
-          NavItem(Icons.fact_check_outlined, Icons.fact_check, 'Review'),
-          NavItem(Icons.insights_outlined, Icons.insights, 'Reports'),
-        ],
-      );
+  Widget build(BuildContext context) => const AppShell([
+        TabSpec('Rooms', RoomsTab()),
+        TabSpec('Review', ReviewTab()),
+        TabSpec('Reports', ReportsTab()),
+      ]);
 }

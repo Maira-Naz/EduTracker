@@ -1,19 +1,16 @@
-// Admin (HOD) bottom tabs: Overview, Rooms, Audit.
+// Admin bottom tabs. (Admin module is built after the student module.)
 import 'package:flutter/material.dart';
 import '../../core/core.dart';
-import 'audit_tab.dart';
-import 'overview_tab.dart';
-import 'rooms_tab.dart';
+import '../auth/sign_out.dart';
 
 class AdminShell extends StatelessWidget {
   const AdminShell({super.key});
   @override
-  Widget build(BuildContext context) => const AppShell(
-        tabs: [OverviewTab(), RoomsTabAdmin(), AuditTab()],
-        items: [
-          NavItem(Icons.dashboard_outlined, Icons.dashboard, 'Overview'),
-          NavItem(Icons.videocam_outlined, Icons.videocam, 'Rooms'),
-          NavItem(Icons.history, Icons.history, 'Audit'),
-        ],
-      );
+  Widget build(BuildContext context) => const AppShell([TabSpec('Overview', _Soon()), TabSpec('Rooms', _Soon()), TabSpec('Students', _Soon()), TabSpec('Audit', _Soon())]);
+}
+
+class _Soon extends StatelessWidget {
+  const _Soon();
+  @override
+  Widget build(BuildContext context) => const Screen(title: 'Admin module', below: 'Coming in a later step', trailing: SignOutButton(), children: []);
 }

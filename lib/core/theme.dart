@@ -1,67 +1,66 @@
-// Colors, text styles, app theme, and small helpers (toast, confirm dialog).
+// Indigo theme: colors, text styles, ThemeData, toast() and confirm().
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-const kBg = Color(0xFFF5F6FB);
-const kInk = Color(0xFF14142B);
-const kMuted = Color(0xFF5B5F7A);
-const kPrimary = Color(0xFF3D4DFF);
-const kLine = Color(0xFFE3E5F0);
-const kGreen = Color(0xFF0B6B43), kGreenBg = Color(0xFFDDF5E8);
-const kRed = Color(0xFFA3211A), kRedBg = Color(0xFFFDE4E1);
-const kAmber = Color(0xFF7A4A00), kAmberBg = Color(0xFFFFEBC2);
-const kViolet = Color(0xFF2B38D6), kVioletBg = Color(0xFFE6E8FF);
-const kGrey = Color(0xFFE6E8F5);
+/// Set to false to use the phone's default font instead of Manrope.
+const kUseManrope = true;
 
-const kH1 = TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: kInk, letterSpacing: -0.5, height: 1.15);
-const kH3 = TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: kInk);
-const kMut = TextStyle(fontSize: 13, color: kMuted, height: 1.4);
+const kBg = Color(0xFFEFEEFF);
+const kInk = Color(0xFF1E1B4B);
+const kMuted = Color(0xFF55527F);
+const kPrimary = Color(0xFF4F46E5);
+const kDeep = Color(0xFF3730A3);
+const kLink = Color(0xFF4338CA);
+const kBorder = Color(0xFFD8D5FA);
+const kChip = Color(0xFFE0DEFF);
+const kDivider = Color(0xFFE8E6FA);
+const kBlobA = Color(0xFFDAD7FF);
+const kBlobB = Color(0xFFC4BFFF);
+const kSoft = Color(0xFFD9D6FF);
+const kGreen = Color(0xFF14683F), kGreenBg = Color(0xFFDDF5E8);
+const kAmber = Color(0xFF7A5200), kAmberBg = Color(0xFFFFF1CF);
+const kRed = Color(0xFF9A2F20), kRedBg = Color(0xFFFDE2E0);
+const kGreyBg = Color(0xFFE8E7F4);
+const kDotGreen = Color(0xFF2E9E6B), kDotRed = Color(0xFFD9483B);
+const kAmberBar = Color(0xFFE8A317), kIndigo500 = Color(0xFF6366F1);
+const kCyan = Color(0xFF5CC8FF), kYellow = Color(0xFFFFD27A);
 
-enum Tone { green, red, amber, violet, grey }
+const kShadow = [BoxShadow(color: Color(0x121E1B4B), blurRadius: 14, offset: Offset(0, 4))];
+const kShadowDeep = [BoxShadow(color: Color(0x593730A3), blurRadius: 32, offset: Offset(0, 16))];
 
-Color toneFg(Tone t) => switch (t) {
-      Tone.green => kGreen,
-      Tone.red => kRed,
-      Tone.amber => kAmber,
-      Tone.violet => kViolet,
-      Tone.grey => kMuted,
-    };
-
-Color toneBg(Tone t) => switch (t) {
-      Tone.green => kGreenBg,
-      Tone.red => kRedBg,
-      Tone.amber => kAmberBg,
-      Tone.violet => kVioletBg,
-      Tone.grey => kGrey,
-    };
-
-Tone pctTone(num p) => p >= 80 ? Tone.green : (p >= 75 ? Tone.amber : Tone.red);
-Color barColor(num p) => p >= 80 ? const Color(0xFF1F9D6B) : (p >= 75 ? const Color(0xFFC77700) : const Color(0xFFD92D20));
+const kH1 = TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1, color: kInk, height: 1.1);
+const kSub = TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kMuted);
+const kRowTitle = TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kInk);
+const kRowSub = TextStyle(fontSize: 13, color: kMuted);
+const kSection = TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kMuted);
+const kNote = TextStyle(fontSize: 13, color: kMuted, height: 1.5);
 
 ThemeData buildTheme() {
-  const line = Color(0xFFD5D8E8);
-  OutlineInputBorder ob(Color c, [double w = 1]) =>
-      OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c, width: w));
-  final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
-  const text = TextStyle(fontSize: 16, fontWeight: FontWeight.w600);
-  return ThemeData(
+  final base = ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(seedColor: kPrimary, primary: kPrimary, surface: kBg),
     scaffoldBackgroundColor: kBg,
+  );
+  final text = base.textTheme.apply(bodyColor: kInk, displayColor: kInk);
+  OutlineInputBorder ob(Color c) => OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c, width: 2));
+  return base.copyWith(
+    textTheme: kUseManrope ? GoogleFonts.manropeTextTheme(text) : text,
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: ob(line),
-      enabledBorder: ob(line),
-      focusedBorder: ob(kPrimary, 2),
-      errorBorder: ob(kRed),
-      focusedErrorBorder: ob(kRed, 2),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      border: ob(kBorder),
+      enabledBorder: ob(kBorder),
+      focusedBorder: ob(kPrimary),
+      errorBorder: ob(kDotRed),
+      focusedErrorBorder: ob(kDotRed),
     ),
-    filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: shape, textStyle: text)),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52), foregroundColor: kInk, side: const BorderSide(color: line), shape: shape, textStyle: text)),
-    navigationBarTheme: const NavigationBarThemeData(backgroundColor: Colors.white, indicatorColor: kVioletBg, height: 70),
-    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: kInk,
+      contentTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ),
   );
 }
 
@@ -73,13 +72,16 @@ Future<bool> confirm(BuildContext c, String title, String body, {String yes = 'C
   final r = await showDialog<bool>(
     context: c,
     builder: (d) => AlertDialog(
-      title: Text(title),
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
       content: Text(body),
       actions: [
         TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
         TextButton(
-            onPressed: () => Navigator.pop(d, true),
-            child: Text(yes, style: TextStyle(color: danger ? kRed : kPrimary, fontWeight: FontWeight.w700))),
+          onPressed: () => Navigator.pop(d, true),
+          child: Text(yes, style: TextStyle(color: danger ? kRed : kPrimary, fontWeight: FontWeight.w800)),
+        ),
       ],
     ),
   );

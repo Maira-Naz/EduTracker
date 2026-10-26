@@ -1,7 +1,7 @@
-// Attendance report for a course by week / month / term.
+// Attendance report per course: average, students below 75%, export.
 import 'package:flutter/material.dart';
 import '../../core/core.dart';
-import '../auth/profile_menu.dart';
+import '../auth/sign_out.dart';
 
 class ReportsTab extends StatefulWidget {
   const ReportsTab({super.key});
@@ -10,78 +10,40 @@ class ReportsTab extends StatefulWidget {
 }
 
 class _ReportsState extends State<ReportsTab> {
-  int range = 0;
-  Course? sel;
-  static const labels = [['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], ['W1', 'W2', 'W3', 'W4'], ['Aug', 'Sep', 'Oct']];
-  static const vals = [[94, 91, 96, 89, 82], [92, 88, 90, 85], [92, 90, 89]];
-  static const lateN = [6, 14, 31], manualN = [3, 8, 19];
-  static const delta = ['+2%', '-1%', '+3%'], rname = ['this week', 'this month', 'this term'];
+  int idx = 0;
 
   @override
-  Widget build(BuildContext context) {
-    final mine = Store.i.courses.where((c) => c.tid == Store.i.uid).toList();
-    final c = sel ?? (mine.isEmpty ? null : mine.first);
-    final off = c == null ? 0 : (c.avg - 91) ~/ 2;
-    final v = [for (final x in vals[range]) (x + off).clamp(0, 100).toInt()];
-    final avg = (v.reduce((a, b) => a + b) / v.length).round();
-    final low = Store.i.students.where((x) => x.pct < 75).toList();
-    return Screen(
-      title: 'Reports',
-      trailing: const ProfileMenu(),
-      children: [
-        if (c != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: PopupMenuButton<Course>(
-              onSelected: (x) => setState(() => sel = x),
-              itemBuilder: (_) => [for (final m in mine) PopupMenuItem(value: m, child: Text(m.name))],
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text('${c.name}, ${rname[range]}', style: kMut),
-                const Icon(Icons.expand_more, size: 18, color: kMuted),
-              ]),
-            ),
-          ),
-        Seg(const ['Week', 'Month', 'Term'], range, (i) => setState(() => range = i)),
-        AppCard(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Item('Average ${rname[range]}', trailing: Pill(delta[range], delta[range].startsWith('-') ? Tone.red : Tone.green)),
-            Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text('$avg%', style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w700))),
-            SizedBox(
-              height: 150,
-              child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                for (var i = 0; i < v.length; i++)
-                  Expanded(
-                    child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-                      Text('${v[i]}', style: TextStyle(fontSize: 12, color: kMuted, fontWeight: i == v.length - 1 ? FontWeight.w700 : FontWeight.w400)),
-                      const SizedBox(height: 4),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: v[i] * 1.05,
-                        margin: const EdgeInsets.symmetric(horizontal: 5),
-                        decoration: BoxDecoration(color: i == v.length - 1 ? kPrimary : const Color(0xFFE0E3FF), borderRadius: BorderRadius.circular(8)),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(labels[range][i], style: kMut),
-                    ]),
-                  ),
-              ]),
-            ),
-          ]),
-        ),
-        tileRow([StatTile('${lateN[range]}', 'Late arrivals'), StatTile('${manualN[range]}', 'Manual marks')]),
-        const Section('Needs attention'),
-        if (low.isEmpty)
-          emptyNote('Everyone is above 75%.')
-        else
-          AppCard(
-            child: Column(children: [
-              for (var i = 0; i < low.length; i++) ...[
-                if (i > 0) const Hr(),
-                Item(low[i].name, sub: low[i].id, trailing: Pill('${low[i].pct}% attendance', pctTone(low[i].pct))),
-              ],
-            ]),
-          ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: Store.i,
+        builder: (context, _) {
+          final s = Store.i;
+          final mine = s.myTeaching;
+          if (mine.isEmpty) return const Screen(title: 'Reports', above: 'Current semester', children: [Panel(child: Text('No courses assigned.', textAlign: TextAlign.center, style: kRowSub))]);
+          final c = mine[idx.clamp(0, mine.length - 1)];
+          final low = s.lowest(c);
+          return Screen(
+            above: 'Current semester',
+            title: 'Reports',
+            trailing: const SignOutButton(),
+            children: [
+              Seg([for (final m in mine) m.name], idx, (i) => setState(() => idx = i), size: 12),
+              HeroCard(
+                radius: 24,
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+                child: Row(children: [
+                  Text('${c.avg}%', style: const TextStyle(fontSize: 46, height: 1, fontWeight: FontWeight.w800, letterSpacing: -2, color: Colors.white)),
+                  const SizedBox(width: 18),
+                  const Expanded(child: Text('Average attendance across 14 sessions this semester.', style: TextStyle(fontSize: 14, height: 1.45, color: kSoft))),
+                ]),
+              ),
+              const SectionTitle('Students below 75%'),
+              RowsPanel(
+                empty: 'Everyone is above 75%.',
+                [for (final x in low) RowItem(x.name, sub: x.id, trailing: pctBadge(s.pctFor(x, c)))],
+              ),
+              OButton('Export report', () => copyToClipboard(context, s.csvFor(c), 'Report copied as CSV. Paste it into Excel or Sheets.'), height: 52, border: kBlobB, color: kDeep),
+            ],
+          );
+        },
+      );
 }
