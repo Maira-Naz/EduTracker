@@ -46,20 +46,23 @@ class _LockPainter extends CustomPainter {
 
 /// Head-and-shoulders placeholder (64-unit grid) used for face images.
 class EtPersonIcon extends StatelessWidget {
-  const EtPersonIcon({super.key, this.size = 64, required this.color});
+  const EtPersonIcon(
+      {super.key, this.size = 64, required this.color, this.strokeWidth = 3});
   final double size;
   final Color color;
+  final double strokeWidth;
 
   @override
   Widget build(BuildContext context) => CustomPaint(
         size: Size.square(size),
-        painter: _PersonPainter(color),
+        painter: _PersonPainter(color, strokeWidth),
       );
 }
 
 class _PersonPainter extends CustomPainter {
-  _PersonPainter(this.color);
+  _PersonPainter(this.color, this.strokeWidth);
   final Color color;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -67,7 +70,7 @@ class _PersonPainter extends CustomPainter {
     final p = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3 * s;
+      ..strokeWidth = strokeWidth * s;
     canvas.drawCircle(Offset(32 * s, 24 * s), 12 * s, p);
     final path = Path()
       ..moveTo(10 * s, 58 * s)
@@ -77,5 +80,48 @@ class _PersonPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _PersonPainter old) => old.color != color;
+  bool shouldRepaint(covariant _PersonPainter old) =>
+      old.color != color || old.strokeWidth != strokeWidth;
+}
+
+
+/// Check mark (24-unit grid).
+class EtCheckIcon extends StatelessWidget {
+  const EtCheckIcon(
+      {super.key, this.size = 24, required this.color, this.strokeWidth = 3});
+  final double size;
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        size: Size.square(size),
+        painter: _CheckPainter(color, strokeWidth),
+      );
+}
+
+class _CheckPainter extends CustomPainter {
+  _CheckPainter(this.color, this.strokeWidth);
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width / 24;
+    final p = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth * s
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final path = Path()
+      ..moveTo(5 * s, 12.5 * s)
+      ..lineTo(9.5 * s, 17 * s)
+      ..lineTo(19 * s, 7.5 * s);
+    canvas.drawPath(path, p);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CheckPainter old) =>
+      old.color != color || old.strokeWidth != strokeWidth;
 }

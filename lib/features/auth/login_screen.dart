@@ -1,7 +1,7 @@
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -10,20 +10,74 @@ import '../../core/widgets/et_widgets.dart';
 
 enum UserRole { student, teacher, admin }
 
-/// Keeps digits only, max 6, shown as "482 913".
-class SixDigitCodeFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    final t = digits.length > 6 ? digits.substring(0, 6) : digits;
-    final f = t.length > 3 ? '${t.substring(0, 3)} ${t.substring(3)}' : t;
-    return TextEditingValue(
-      text: f,
-      selection: TextSelection.collapsed(offset: f.length),
-    );
-  }
+/// Role-specific text, field configuration, and layout.
+class _RoleSpec {
+  const _RoleSpec({
+    required this.idLabel,
+    required this.demoId,
+    required this.subtitle,
+    required this.formNote,
+    required this.buttonLabel,
+    required this.sectionGap,
+    required this.fieldHeight,
+    required this.fieldGap,
+    required this.labelGap,
+    this.showRegisterLink = false,
+  });
+
+  final String idLabel;
+  final String demoId;
+
+  /// First note displayed above the login form.
+  final String subtitle;
+
+  /// Additional role-specific note below the form.
+  final String formNote;
+
+  final String buttonLabel;
+  final double sectionGap;
+  final double fieldHeight;
+  final double fieldGap;
+  final double labelGap;
+  final bool showRegisterLink;
 }
+
+const Map<UserRole, _RoleSpec> _specs = {
+  UserRole.student: _RoleSpec(
+    idLabel: 'Student ID',
+    demoId: 'CS-2041',
+    subtitle: 'Your classroom camera records attendance automatically.',
+    formNote: 'Keep your account details safe.',
+    buttonLabel: 'Sign in',
+    sectionGap: 22,
+    fieldHeight: 54,
+    fieldGap: 14,
+    labelGap: 6,
+    showRegisterLink: true,
+  ),
+  UserRole.teacher: _RoleSpec(
+    idLabel: 'Teacher ID',
+    demoId: 'T-1042',
+    subtitle: 'Manage your classes and attendance with ease.',
+    formNote: 'Use your registered teacher ID and password.',
+    buttonLabel: 'Sign in securely',
+    sectionGap: 20,
+    fieldHeight: 52,
+    fieldGap: 12,
+    labelGap: 5,
+  ),
+  UserRole.admin: _RoleSpec(
+    idLabel: 'Your Name',
+    demoId: 'Admin',
+    subtitle: 'Manage rooms, cameras and schedules from one place.',
+    formNote: 'Changes are recorded under your name.',
+    buttonLabel: 'Sign in as Admin',
+    sectionGap: 20,
+    fieldHeight: 52,
+    fieldGap: 12,
+    labelGap: 5,
+  ),
+};
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,90 +87,139 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const _demoIds = {
-    UserRole.student: 'S-2041',
-    UserRole.teacher: 'T-1042',
-    UserRole.admin: 'A-0007',
-  };
-
   UserRole _role = UserRole.teacher;
-  final _id = TextEditingController(text: 'T-1042');
-  final _pw = TextEditingController(text: '12345678');
-  final _code = TextEditingController(text: '482 913');
+
+  final TextEditingController _id =
+  TextEditingController(text: 'T-1042');
+  final TextEditingController _pw =
+  TextEditingController(text: '12345678');
+
   bool _loading = false;
   bool _submitted = false;
+
+  _RoleSpec get _spec => _specs[_role]!;
 
   @override
   void dispose() {
     _id.dispose();
     _pw.dispose();
-    _code.dispose();
     super.dispose();
   }
 
-  String get _idLabel {
-    switch (_role) {
-      case UserRole.student:
-        return 'Student ID';
-      case UserRole.teacher:
-        return 'Staff ID';
-      case UserRole.admin:
-        return 'Admin ID';
+  String? get _idError {
+    if (!_submitted || _id.text.trim().isNotEmpty) {
+      return null;
+    }
+
+    return _role == UserRole.admin
+        ? 'Enter your name'
+        : 'Enter your ${_role == UserRole.student ? 'student' : 'teacher'} ID';
+  }
+
+  String? get _pwError {
+    if (!_submitted || _pw.text.length >= 6) {
+      return null;
+    }
+
+    return 'Password must be at least 6 characters';
+  }
+
+  void _refresh([String? value]) {
+    if (_submitted) {
+      setState(() {});
     }
   }
 
-  String? get _idError =>
-      _submitted && _id.text.trim().isEmpty ? 'Enter your ID' : null;
-  String? get _pwError => _submitted && _pw.text.length < 6
-      ? 'Password must be at least 6 characters'
-      : null;
-  String? get _codeError =>
-      _submitted && _code.text.replaceAll(' ', '').length != 6
-          ? 'Enter the 6-digit code'
-          : null;
+  void _setRole(int index) {
+    if (index < 0 || index >= UserRole.values.length) {
+      return;
+    }
 
-  void _refresh([String? _]) {
-    if (_submitted) setState(() {});
-  }
+    final UserRole next = UserRole.values[index];
+    final String previousDemoId = _specs[_role]!.demoId;
 
-  void _setRole(int i) {
-    final next = UserRole.values[i];
-    if (_id.text == _demoIds[_role]) _id.text = _demoIds[next]!;
-    setState(() => _role = next);
+    // Change the demo value only if the user has not entered
+    // a custom ID or name.
+    if (_id.text == previousDemoId) {
+      _id.text = _specs[next]!.demoId;
+    }
+
+    setState(() {
+      _role = next;
+      _submitted = false;
+    });
   }
 
   Future<void> _submit() async {
-    FocusScope.of(context).unfocus();
-    setState(() => _submitted = true);
-    if (_idError != null || _pwError != null || _codeError != null) return;
+    if (_loading) return;
 
-    setState(() => _loading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 650));
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _submitted = true;
+    });
+
+    if (_idError != null || _pwError != null) {
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+    });
+
+    // Temporary demonstration delay.
+    // Replace this with your real authentication service.
+    await Future<void>.delayed(
+      const Duration(milliseconds: 650),
+    );
+
     if (!mounted) return;
-    setState(() => _loading = false);
+
+    setState(() {
+      _loading = false;
+    });
+
+    final NavigatorState nav = Navigator.of(context);
 
     switch (_role) {
-      case UserRole.teacher:
-        Navigator.of(context).pushNamedAndRemoveUntil(
-            Routes.teacherRooms, (r) => false);
-        break;
       case UserRole.student:
-        Navigator.of(context)
-            .pushNamed(Routes.comingSoon, arguments: 'Student');
+        nav.pushNamedAndRemoveUntil(
+          Routes.studentCourses,
+              (route) => false,
+        );
         break;
+
+      case UserRole.teacher:
+        nav.pushNamedAndRemoveUntil(
+          Routes.teacherRooms,
+              (route) => false,
+        );
+        break;
+
       case UserRole.admin:
-        Navigator.of(context).pushNamed(Routes.comingSoon, arguments: 'Admin');
+        nav.pushNamedAndRemoveUntil(
+          Routes.adminDashboard,
+              (route) => false,
+        );
         break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final top = math.max(64.0, MediaQuery.of(context).padding.top + 20);
+    final double top = math.max(
+      64.0,
+      MediaQuery.of(context).padding.top + 20,
+    );
+
+    final _RoleSpec spec = _spec;
+    final double g = spec.sectionGap;
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: Stack(
         children: [
+          // Decorative background circle.
           Positioned(
             left: -90,
             top: -90,
@@ -124,9 +227,13 @@ class _LoginScreenState extends State<LoginScreen> {
               width: 260,
               height: 260,
               decoration: const BoxDecoration(
-                  shape: BoxShape.circle, color: AppColors.blobLarge),
+                shape: BoxShape.circle,
+                color: AppColors.blobLarge,
+              ),
             ),
           ),
+
+          // Decorative background shape.
           Positioned(
             right: -30,
             top: 60,
@@ -142,13 +249,21 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+
           Positioned.fill(
             child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(24, top, 24, 24),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                top,
+                24,
+                24,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   gap(30),
+
+                  // EduTrack logo.
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
@@ -160,62 +275,90 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: AppShadows.logo,
                       ),
-                      child: Text('E',
-                          style: AppText.style(
-                              26, FontWeight.w800, Colors.white)),
+                      child: Text(
+                        'E',
+                        style: AppText.style(
+                          26,
+                          FontWeight.w800,
+                          Colors.white,
+                        ),
+                      ),
                     ),
                   ),
-                  gap(20),
+
+                  gap(g),
+
+                  // Welcome heading.
                   Text(
                     'Welcome to\nEduTrack',
-                    style: AppText.style(34, FontWeight.w800, AppColors.ink,
-                        ls: -0.03, height: 1.1),
+                    style: AppText.style(
+                      34,
+                      FontWeight.w800,
+                      AppColors.ink,
+                      ls: -0.03,
+                      height: 1.1,
+                    ),
                   ),
+
                   gap(8),
+
+                  // Role-specific note above the login form.
                   Text(
-                    'Sign in to manage attendance. Your classroom camera does the marking.',
-                    style: AppText.style(15, FontWeight.w400, AppColors.muted,
-                        height: 1.5),
+                    spec.subtitle,
+                    style: AppText.style(
+                      13,
+                      FontWeight.w400,
+                      AppColors.muted,
+                      height: 1.5,
+                    ),
                   ),
-                  gap(20),
+
+                  gap(g),
+
+                  // Shared role selector.
                   EtSegmented(
-                    labels: const ['Student', 'Teacher', 'Admin'],
+                    labels: const [
+                      'Student',
+                      'Teacher',
+                      'Admin',
+                    ],
                     selected: _role.index,
                     onChanged: _setRole,
                   ),
-                  gap(20),
+
+                  gap(g),
+
+                  // Student ID, Teacher ID, or Admin name.
                   EtTextField(
-                    label: _idLabel,
+                    label: spec.idLabel,
                     controller: _id,
+                    height: spec.fieldHeight,
+                    labelGap: spec.labelGap,
                     error: _idError,
                     onChanged: _refresh,
                     textInputAction: TextInputAction.next,
                   ),
-                  gap(12),
+
+                  gap(spec.fieldGap),
+
+                  // Shared password field.
                   EtTextField(
                     label: 'Password',
                     controller: _pw,
                     obscure: true,
+                    height: spec.fieldHeight,
+                    labelGap: spec.labelGap,
                     error: _pwError,
-                    onChanged: _refresh,
-                    textInputAction: TextInputAction.next,
-                  ),
-                  gap(12),
-                  EtTextField(
-                    label: '6-digit code sent to your registered phone',
-                    controller: _code,
-                    weight: FontWeight.w700,
-                    letterSpacingEm: 0.18,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [SixDigitCodeFormatter()],
-                    error: _codeError,
                     onChanged: _refresh,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _submit(),
                   ),
-                  gap(20),
+
+                  gap(g),
+
+                  // Shared sign-in button.
                   EtButton(
-                    label: 'Sign in securely',
+                    label: spec.buttonLabel,
                     height: 56,
                     radius: 16,
                     fontSize: 16,
@@ -223,19 +366,74 @@ class _LoginScreenState extends State<LoginScreen> {
                     loading: _loading,
                     onPressed: _submit,
                   ),
-                  gap(20),
+
+                  gap(12),
+
+                  // Role-specific note below the login form.
+                  Text(
+                    spec.formNote,
+                    textAlign: TextAlign.center,
+                    style: AppText.style(
+                      13,
+                      FontWeight.w500,
+                      AppColors.muted,
+                      height: 1.45,
+                    ),
+                  ),
+
+                  gap(g),
+
+                  // Shared forgot-password navigation.
                   Center(
                     child: InkWell(
-                      onTap: () =>
-                          Navigator.of(context).pushNamed(Routes.reset),
+                      onTap: () {
+                        Navigator.of(context).pushNamed(
+                          Routes.reset,
+                        );
+                      },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text('Forgot password?',
-                            style: AppText.style(
-                                14, FontWeight.w600, AppColors.muted)),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 4,
+                        ),
+                        child: Text(
+                          'Forgot password?',
+                          style: AppText.style(
+                            14,
+                            FontWeight.w600,
+                            AppColors.muted,
+                          ),
+                        ),
                       ),
                     ),
                   ),
+
+                  // Student-only registration link.
+                  if (spec.showRegisterLink) ...[
+                    gap(8),
+                    Center(
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).pushNamed(
+                            Routes.studentRegister,
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 4,
+                          ),
+                          child: Text(
+                            'First time here? Register your face',
+                            textAlign: TextAlign.center,
+                            style: AppText.style(
+                              14,
+                              FontWeight.w800,
+                              AppColors.link,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

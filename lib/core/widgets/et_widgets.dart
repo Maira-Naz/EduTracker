@@ -12,8 +12,8 @@ class EtCard extends StatelessWidget {
   const EtCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(18),
-    this.radius = 22,
+    this.padding = const EdgeInsets.all(20),
+    this.radius = 24,
     this.color = Colors.white,
     this.shadow = AppShadows.card,
     this.onTap,
@@ -53,12 +53,14 @@ class EtButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.style = EtButtonStyle.primary,
-    this.height = 52,
+    this.height = 60,
     this.radius = 14,
     this.fontSize = 15,
     this.shadow,
     this.loading = false,
     this.horizontalPadding = 0,
+    this.customForeground,
+    this.customBorder,
   });
 
   final String label;
@@ -70,6 +72,8 @@ class EtButton extends StatelessWidget {
   final List<BoxShadow>? shadow;
   final bool loading;
   final double horizontalPadding;
+  final Color? customForeground;
+  final Color? customBorder;
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +103,10 @@ class EtButton extends StatelessWidget {
         bg = Colors.white;
         fg = AppColors.deep;
         break;
+    }
+    if (customForeground != null) fg = customForeground!;
+    if (customBorder != null) {
+      side = BorderSide(color: customBorder!, width: 2);
     }
     final shape = RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius), side: side);
@@ -156,7 +164,8 @@ class EtTextField extends StatelessWidget {
     this.inputFormatters,
     this.weight = FontWeight.w600,
     this.letterSpacingEm,
-    this.height = 52,
+    this.height = 60,
+    this.labelGap = 5,
     this.error,
     this.onChanged,
     this.textInputAction,
@@ -171,6 +180,7 @@ class EtTextField extends StatelessWidget {
   final FontWeight weight;
   final double? letterSpacingEm;
   final double height;
+  final double labelGap;
   final String? error;
   final ValueChanged<String>? onChanged;
   final TextInputAction? textInputAction;
@@ -192,7 +202,7 @@ class EtTextField extends StatelessWidget {
           child: Text(label,
               style: AppText.style(13, FontWeight.w700, AppColors.ink)),
         ),
-        gap(5),
+        gap(labelGap),
         SizedBox(
           height: height,
           child: TextField(
@@ -266,7 +276,7 @@ class EtSegmented extends StatelessWidget {
                 child: InkWell(
                   onTap: () => onChanged(i),
                   child: SizedBox(
-                    height: 42,
+                    height: 50,
                     child: Center(
                       child: Text(
                         labels[i],
@@ -435,4 +445,72 @@ void showEtSnack(
           : SnackBarAction(label: actionLabel, onPressed: onAction ?? () {}),
     ),
   );
+}
+
+
+/// Pill-shaped on/off switch (48x28) from the design.
+class EtSwitch extends StatelessWidget {
+  const EtSwitch({super.key, required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      toggled: value,
+      child: GestureDetector(
+        onTap: () => onChanged(!value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 48,
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          decoration: BoxDecoration(
+            color: value ? AppColors.primary : AppColors.border,
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Container(
+            width: 22,
+            height: 22,
+            decoration: const BoxDecoration(
+                shape: BoxShape.circle, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Horizontal progress bar (10px, rounded) used for attendance percentages.
+class EtBar extends StatelessWidget {
+  const EtBar({
+    super.key,
+    required this.fraction,
+    this.track = AppColors.chip,
+    this.fill = AppColors.indigoBar,
+  });
+
+  final double fraction;
+  final Color track;
+  final Color fill;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 10,
+      decoration:
+          BoxDecoration(color: track, borderRadius: BorderRadius.circular(6)),
+      alignment: Alignment.centerLeft,
+      child: FractionallySizedBox(
+        widthFactor: fraction.clamp(0.0, 1.0).toDouble(),
+        child: Container(
+          height: 10,
+          decoration: BoxDecoration(
+              color: fill, borderRadius: BorderRadius.circular(6)),
+        ),
+      ),
+    );
+  }
 }

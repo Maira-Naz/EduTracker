@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
+import 'data/student_store.dart';
 import 'data/teacher_store.dart';
 
 void main() {
@@ -24,7 +25,8 @@ class EduTrackApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => TeacherStore()),
-        // StudentStore / AdminStore are added here in the next modules.
+        ChangeNotifierProvider(create: (_) => StudentStore()),
+        // AdminStore is added here in the next module.
       ],
       child: MaterialApp(
         title: 'EduTrack',

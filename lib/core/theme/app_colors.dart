@@ -27,6 +27,17 @@ class AppColors {
   static const amberBar = Color(0xFFE8A317);
   static const redBg = Color(0xFFFDE2E0);
   static const redFg = Color(0xFF9A2F20);
+
+  // Warning ("below 75%") card + misc accents used by the student module.
+  static const indigoBar = Color(0xFF6366F1);
+  static const warnBg = Color(0xFFFFF6DF);
+  static const warnBorder = Color(0xFFF2B84B);
+  static const warnText = Color(0xFF8A5A00);
+  static const warnDeepText = Color(0xFF5C4108);
+  static const warnTrack = Color(0xFFF4E6C2);
+  static const warnChipBg = Color(0xFFF9E3B0);
+  static const absentChipBg = Color(0xFFFCE3DE);
+  static const signOutBorder = Color(0xFFF3C9C4);
 }
 
 class AppShadows {
